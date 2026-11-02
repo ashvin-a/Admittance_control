@@ -1,4 +1,3 @@
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \documentclass[letterpaper, 10pt, conference]{ieeeconf}
 
@@ -14,11 +13,17 @@
 \usepackage{graphicx}
 \usepackage{adjustbox}
 \usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,calc}
 \usepackage[thmmarks, amsmath]{ntheorem}
 
 \DeclareMathOperator{\diff}{d}
 \newcommand{\ddt}{\tfrac{\diff}{\diff \! t}}
 \providecommand{\norm}[1]{\lVert#1\rVert}
+\newcommand{\thv}{\boldsymbol{\theta}}
+\newcommand{\thvd}{\dot{\boldsymbol{\theta}}}
+\newcommand{\thvdd}{\ddot{\boldsymbol{\theta}}}
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}{Lemma}
@@ -29,7 +34,7 @@
 \newtheorem{corollary}{Corollary}
 
 \title{\LARGE \bf
-System Analysis and Torque Control of a 2-DOF Robot Arm
+Impedance and Admittance Control of a 2-DOF Robot Arm
 }
 
 \author{Ashvin Anilkumar, Leo Xu}
@@ -39,68 +44,193 @@ System Analysis and Torque Control of a 2-DOF Robot Arm
 \maketitle
 \thispagestyle{plain}
 \pagestyle{plain}
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.25\textwidth]{simple_double_pend.png}
-    \caption{Diagram of 2-DOF robot arm \cite{underactuated}.}
-    \label{fig:arm}
-\end{figure}
 
 \section{Introduction \& Motivation}
 
-In this project, we are interested in analyzing the
-2-DOF robot arm shown in Figure \ref{fig:arm}.
-The equations of motion for this system contain
-nonlinear terms (sines and cosines) and serve as
-a simple starting point for examining robot
-manipulators. We will linearize the system about
-an equilibrium point, examine its stability, and,
-if time permits, design an admittance controller
-for the robot.
+A robot that touches its environment must regulate
+the relationship between motion and contact force,
+not motion alone. In this project, we study this
+problem on the 2-DOF robot arm shown in
+Figure~\ref{fig:arm}. Its equations of motion
+contain nonlinear terms (sines and cosines) and
+make it a simple but representative manipulator.
+
+Our primary goal is to design and analyze a
+torque-based \emph{impedance controller}
+\cite{hogan1985impedance}, which makes the arm
+behave like a virtual spring-damper about a desired
+trajectory. We will (i) derive and linearize the
+open-loop dynamics, (ii) show how the impedance law
+changes the local dynamics and stability, and
+(iii) evaluate the controller in simulation under
+reference changes and external disturbance torques.
+If time permits, our secondary goal is to design a
+position-based \emph{admittance controller}, the
+dual of impedance control, and compare the two.
+Throughout, we carry one concrete example arm so that
+every matrix below has numbers we can check.
+
+\section{System, Inputs \& Notation}
+
+\subsection{Example arm}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[scale=0.85,>=Stealth,
+        link/.style={very thick},
+        mass/.style={circle,fill=red!60!black,minimum size=9pt,inner sep=0pt},
+        tq/.style={very thick,blue!70!black,->},
+        ang/.style={thin,->}]
+      % geometry: theta1 = 30 deg, theta2 = 40 deg (measured from straight down / from link 1)
+      \coordinate (O) at (0,0);
+      \coordinate (P1) at (-60:2.2);
+      \coordinate (P2) at ($(P1)+(-20:2.2)$);
+      \draw[very thick] (-0.8,0) -- (0.8,0);
+      \foreach \x in {-0.6,-0.3,0,0.3,0.6} \draw (\x,0) -- ++(0.15,0.2);
+      \draw[thin,gray] (O) -- (0,-1.9);
+      \draw[thin,gray,dashed] (P1) -- ++(-60:1.2);
+      \draw[link] (O) -- (P1) node[midway,above right] {$l_1$};
+      \draw[link] (P1) -- (P2) node[midway,above right] {$l_2$};
+      \node[mass] at (P1) {};
+      \node[mass] at (P2) {};
+      \node[left=4pt] at (P1) {$m_1$};
+      \node[below right=1pt] at (P2) {$m_2$};
+      \draw[ang] (-90:0.9) arc (-90:-60:0.9);
+      \node at (-75:1.3) {$\theta_1$};
+      \draw[ang] ($(P1)+(-60:0.9)$) arc (-60:-20:0.9);
+      \node at ($(P1)+(-42:1.2)$) {$\theta_2$};
+      % actuator torques
+      \draw[tq] (-130:0.55) arc (-130:-30:0.55);
+      \node[blue!70!black] at (-155:0.95) {$\tau_1$};
+      \draw[tq] ($(P1)+(110:0.5)$) arc (110:20:0.5);
+      \node[blue!70!black] at ($(P1)+(60:0.85)$) {$\tau_2$};
+      % external contact torque / force at the tip
+      \draw[very thick,orange!80!black,->] ($(P2)+(1.1,0.0)$) -- node[above] {$\boldsymbol{\tau}_{\mathrm{ext}}$} (P2);
+      % gravity
+      \draw[->] (-1.9,-0.3) -- node[left] {$g$} (-1.9,-1.1);
+    \end{tikzpicture}
+    \caption{2-DOF arm (adapted from \cite{underactuated}).
+    Joint angles $\theta_1,\theta_2$ are zero when the arm hangs
+    straight down; $\theta_2$ is relative to link~1. The
+    controller commands the motor torques $\tau_1$ (shoulder) and
+    $\tau_2$ (elbow) in blue. The environment acts through
+    the external torque $\boldsymbol{\tau}_{\mathrm{ext}}$ (orange),
+    which we cannot command.}
+    \label{fig:arm}
+\end{figure}
+
+For all numerical examples we use point masses at the
+link tips with
+$m_1=m_2=1~\mathrm{kg}$, $l_1=l_2=1~\mathrm{m}$, and
+$g=9.81~\mathrm{m/s^2}$.
+
+\subsection{How we interact with the arm}
+
+The arm has two actuators, one at each joint. Our
+\emph{control input} is the vector of motor torques
+\[
+\mathbf{u}=[\tau_1\ \ \tau_2]^{T}\in\mathbb{R}^{2},
+\]
+where $\tau_1$ acts at the shoulder (on link~1) and
+$\tau_2$ at the elbow (between link~1 and link~2).
+Because each joint has its own motor, both degrees of
+freedom are directly actuated. The environment
+(contact, or a push on the arm) acts through the
+\emph{external torque}
+$\boldsymbol{\tau}_{\mathrm{ext}}\in\mathbb{R}^{2}$.
+It is a disturbance: we do not choose it, and it is
+zero in free motion. We assume we measure the joint
+angles and velocities, so the controller sees the full
+state. In the impedance controller of
+Section~\ref{sec:impedance}, the only other signal we
+supply is the desired joint configuration
+$\boldsymbol{\theta}_d$, which sets the equilibrium
+the virtual spring pulls toward.
+
+\subsection{Notation}
+
+Table~\ref{tab:notation} lists every symbol used in
+this proposal. Vectors and matrices are bold; a dot is
+a time derivative.
+
+\begin{table}[htbp]
+\centering
+\caption{Symbols and example values.}
+\label{tab:notation}
+\footnotesize
+\begin{tabular}{@{}p{0.2\columnwidth}p{0.47\columnwidth}p{0.23\columnwidth}@{}}
+\toprule
+Symbol & Meaning & Example \\
+\midrule
+$\theta_1,\theta_2$ & joint angles (shoulder, elbow); $\theta=0$ is hanging down & rad \\
+$\dot{\boldsymbol{\theta}},\ddot{\boldsymbol{\theta}}$ & joint velocity, acceleration & rad/s, rad/s$^2$ \\
+$m_i,\ l_i$ & mass and length of link $i$ & 1~kg, 1~m \\
+$g$ & gravitational acceleration & 9.81~m/s$^2$ \\
+$\mathbf{M}(\boldsymbol{\theta})$ & inertia matrix & $2\times2$ \\
+$\mathbf{C}(\boldsymbol{\theta},\dot{\boldsymbol{\theta}})$ & Coriolis/centrifugal matrix & $2\times2$ \\
+$\boldsymbol{\tau}_g(\boldsymbol{\theta})$ & gravity torque vector & N$\cdot$m \\
+$\mathbf{u}=[\tau_1\ \tau_2]^T$ & motor torques (control input) & N$\cdot$m \\
+$\mathbf{B}$ & maps $\mathbf{u}$ to joint torques; $\mathbf{I}_2$ here & $2\times2$ \\
+$\boldsymbol{\tau}_{\mathrm{ext}}$ & external (contact) torque, uncommanded & N$\cdot$m \\
+$\mathbf{x}$ & state $[\boldsymbol{\theta}^T\ \dot{\boldsymbol{\theta}}^T]^T$ & $\mathbb{R}^4$ \\
+$\mathbf{f}(\mathbf{x},\mathbf{u})$ & state-space dynamics, $\dot{\mathbf{x}}=\mathbf{f}$ & \\
+$(\mathbf{x}^*,\mathbf{u}^*)$ & equilibrium state--input pair & $(\mathbf{0},\mathbf{0})$ \\
+$\mathbf{A},\mathbf{B}_{\mathrm{lin}}$ & Jacobians of $\mathbf{f}$ at $(\mathbf{x}^*,\mathbf{u}^*)$ & $4\times4$, $4\times2$ \\
+$\boldsymbol{\theta}_d,\ \mathbf{e}$ & desired angles; error $\boldsymbol{\theta}-\boldsymbol{\theta}_d$ & rad \\
+$\mathbf{K},\mathbf{D}$ & virtual stiffness and damping gains & $2\times2$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Control objective}
+
+Given a constant desired configuration
+$\boldsymbol{\theta}_d$, design a state-feedback law
+$\mathbf{u}=\boldsymbol{\pi}(\mathbf{x},\boldsymbol{\theta}_d)$
+such that (i) with
+$\boldsymbol{\tau}_{\mathrm{ext}}=\mathbf{0}$ the
+error $\mathbf{e}=\boldsymbol{\theta}-\boldsymbol{\theta}_d$
+converges to zero, and (ii) when
+$\boldsymbol{\tau}_{\mathrm{ext}}\neq\mathbf{0}$ the arm
+yields like a spring-damper,
+$\mathbf{K}\mathbf{e}=\boldsymbol{\tau}_{\mathrm{ext}}$ at
+rest, with $\mathbf{K}$ and $\mathbf{D}$ chosen by us.
 
 \section{Mathematical Model \& Linearization}
 
+\subsection{Dynamics}
+
 As given by \cite{underactuated}, the equations
-of motion (EOM) for a general robotic manipulator
-with joint position vector $\mathbf{q}$,
-where $\dim(\mathbf{q})=n$, are
+of motion (EOM) for a general manipulator with joint
+angles $\boldsymbol{\theta}\in\mathbb{R}^{n}$ are
 
 \begin{equation}
 \boxed{
-\mathbf{M}(\mathbf{q})\ddot{\mathbf{q}}
+\mathbf{M}(\boldsymbol{\theta})\ddot{\boldsymbol{\theta}}
 +
-\mathbf{C}(\mathbf{q},\dot{\mathbf{q}})
-\dot{\mathbf{q}}
+\mathbf{C}(\boldsymbol{\theta},\dot{\boldsymbol{\theta}})
+\dot{\boldsymbol{\theta}}
 =
-\boldsymbol{\tau}_g(\mathbf{q})
+\boldsymbol{\tau}_g(\boldsymbol{\theta})
 +
-\mathbf{B}\mathbf{u}.
+\mathbf{B}\mathbf{u}
++
+\boldsymbol{\tau}_{\mathrm{ext}}.
 }
 \label{eq:eom}
 \end{equation}
 
-Here,
-$\mathbf{M}(\mathbf{q})\in\mathbb{R}^{n\times n}$
-is the inertia matrix,
-$\mathbf{C}(\mathbf{q},\dot{\mathbf{q}})
-\in\mathbb{R}^{n\times n}$
-captures Coriolis and centrifugal effects,
-$\boldsymbol{\tau}_g(\mathbf{q})\in\mathbb{R}^{n}$
-is the gravitational torque vector, and
-$\mathbf{B}\in\mathbb{R}^{n\times m}$
-maps the control inputs
-$\mathbf{u}\in\mathbb{R}^{m}$
-to generalized forces.
-
-For the simple 2-DOF example
-\cite{underactuated}, we have
+Compared with \cite{underactuated}, the term
+$\boldsymbol{\tau}_{\mathrm{ext}}$ is added so that
+interaction with the environment can be studied. For
+our arm ($n=2$), with $c_2=\cos\theta_2$,
+$s_1=\sin\theta_1$, $s_2=\sin\theta_2$,
+$s_{1+2}=\sin(\theta_1+\theta_2)$,
 
 \[
 \adjustbox{max width=0.95\columnwidth}{$\displaystyle
-\mathbf{M}(\mathbf{q}) =
+\mathbf{M}(\boldsymbol{\theta}) =
 \begin{bmatrix}
 (m_1+m_2)l_1^2 + m_2l_2^2 + 2m_2l_1l_2c_2
 &
@@ -115,203 +245,107 @@ $}
 
 \[
 \adjustbox{max width=0.95\columnwidth}{$\displaystyle
-\mathbf{C}(\mathbf{q},\dot{\mathbf{q}}) =
+\mathbf{C}(\boldsymbol{\theta},\dot{\boldsymbol{\theta}}) =
 \begin{bmatrix}
 0
 &
--m_2l_1l_2(2\dot{q}_1+\dot{q}_2)s_2
+-m_2l_1l_2(2\dot{\theta}_1+\dot{\theta}_2)s_2
 \\[6pt]
-\frac{1}{2}m_2l_1l_2(2\dot{q}_1+\dot{q}_2)s_2
+\frac{1}{2}m_2l_1l_2(2\dot{\theta}_1+\dot{\theta}_2)s_2
 &
--\frac{1}{2}m_2l_1l_2\dot{q}_1s_2
+-\frac{1}{2}m_2l_1l_2\dot{\theta}_1s_2
 \end{bmatrix}
 $}
 \]
 
 \[
 \adjustbox{max width=0.95\columnwidth}{$\displaystyle
-\boldsymbol{\tau}_g(\mathbf{q}) =
+\boldsymbol{\tau}_g(\boldsymbol{\theta}) =
 -g
 \begin{bmatrix}
 (m_1+m_2)l_1s_1 + m_2l_2s_{1+2}
 \\[6pt]
 m_2l_2s_{1+2}
-\end{bmatrix}
+\end{bmatrix},
+\qquad
+\mathbf{B}=\mathbf{I}_2,
 $}
 \]
 
+so both joints are directly actuated. With the example
+values ($m_i=l_i=1$) these become
+
 \[
-\mathbf{B} =
+\adjustbox{max width=0.95\columnwidth}{$\displaystyle
+\mathbf{M}=
 \begin{bmatrix}
-1 & 0\\
-0 & 1
-\end{bmatrix}
-=\mathbf{I}_2.
+3+2c_2 & 1+c_2\\
+1+c_2 & 1
+\end{bmatrix},\quad
+\boldsymbol{\tau}_g=-g
+\begin{bmatrix}
+2s_1+s_{1+2}\\ s_{1+2}
+\end{bmatrix}.
+$}
 \]
 
-Here, we use the shorthand notation
-
-\begin{align*}
-c_2 &= \cos(q_2), &
-s_1 &= \sin(q_1),\\
-s_2 &= \sin(q_2), &
-s_{1+2} &= \sin(q_1+q_2).
-\end{align*}
-
+\textbf{Second-order form.}
 For strictly positive masses and link lengths,
-$\mathbf{M}(\mathbf{q})$ is positive definite
-and therefore invertible.
-
-We can isolate the joint accelerations as
+$\mathbf{M}(\boldsymbol{\theta})$ is positive definite
+and therefore invertible, so the EOM solve explicitly for
+the joint accelerations:
 
 \begin{equation}
 \adjustbox{max width=0.80\columnwidth}{$\displaystyle
-\ddot{\mathbf{q}} =
-\mathbf{M}(\mathbf{q})^{-1}
+\ddot{\boldsymbol{\theta}} =
+\mathbf{M}(\boldsymbol{\theta})^{-1}
 \left[
--\mathbf{C}(\mathbf{q},\dot{\mathbf{q}})
-\dot{\mathbf{q}}
+-\mathbf{C}(\boldsymbol{\theta},\dot{\boldsymbol{\theta}})
+\dot{\boldsymbol{\theta}}
++\boldsymbol{\tau}_g(\boldsymbol{\theta})
 +\mathbf{B}\mathbf{u}
-+\boldsymbol{\tau}_g(\mathbf{q})
++\boldsymbol{\tau}_{\mathrm{ext}}
 \right].
 $}
 \label{eq:acceleration}
 \end{equation}
 
-\subsection{Nonlinear State-Space Representation}
-
-We define the state vector and control input as
-
-\[
-\mathbf{x} =
-\begin{bmatrix}
-q_1 & q_2 & \dot{q}_1 & \dot{q}_2
-\end{bmatrix}^{T},
-\qquad
-\mathbf{u} =
-\begin{bmatrix}
-\tau_1 & \tau_2
-\end{bmatrix}^{T}.
-\]
-
-Since $\mathbf{B}=\mathbf{I}_2$, we can
-express the nonlinear state-space dynamics as
+\textbf{State-space form.}
+Stacking $\mathbf{x}=[\theta_1\ \theta_2\ \dot{\theta}_1\
+\dot{\theta}_2]^{T}=[\boldsymbol{\theta}^T\
+\dot{\boldsymbol{\theta}}^T]^T$ and setting
+$\boldsymbol{\tau}_{\mathrm{ext}}=\mathbf{0}$, the
+dynamics $\dot{\mathbf{x}}=\mathbf{f}(\mathbf{x},\mathbf{u})$
+are, explicitly,
 
 \begin{equation}
-\boxed{
-\dot{\mathbf{x}} =
-\underbrace{
-\mathbf{A}_0\mathbf{x}
-+\mathbf{G}(\mathbf{x})\mathbf{u}
-+\mathbf{h}(\mathbf{x})
-}_{\mathbf{f}(\mathbf{x},\mathbf{u})}
-}
-\label{eq:nonlinear_ss}
-\end{equation}
-
-where
-
-\[
-\mathbf{A}_0 =
+\mathbf{f}(\mathbf{x},\mathbf{u})=
 \begin{bmatrix}
-0&0&1&0\\
-0&0&0&1\\
-0&0&0&0\\
-0&0&0&0
-\end{bmatrix},
-\]
-
-\[
-\mathbf{G}(\mathbf{x}) =
-\begin{bmatrix}
-\mathbf{0}_{2\times2}\\
-\mathbf{M}(x_2)^{-1}
-\end{bmatrix},
-\]
-
-and
-
-\[
-\adjustbox{max width=0.95\columnwidth}{$\displaystyle
-\mathbf{h}(\mathbf{x}) =
-\begin{bmatrix}
-\mathbf{0}_{2\times1}\\[4pt]
-\mathbf{M}(x_2)^{-1}
-\left[
-\boldsymbol{\tau}_g(x_1,x_2)
--\mathbf{C}(\mathbf{x})
-\begin{bmatrix}x_3\\x_4\end{bmatrix}
-\right]
+\dot{\boldsymbol{\theta}}\\[2pt]
+\mathbf{M}(\boldsymbol{\theta})^{-1}
+\left[-\mathbf{C}(\boldsymbol{\theta},\dot{\boldsymbol{\theta}})
+\dot{\boldsymbol{\theta}}
++\boldsymbol{\tau}_g(\boldsymbol{\theta})
++\mathbf{B}\mathbf{u}\right]
 \end{bmatrix}.
-$}
-\]
-
-Here, $\mathbf{M}(x_2)$,
-$\mathbf{C}(\mathbf{x})$, and
-$\boldsymbol{\tau}_g(x_1,x_2)$
-refer to the previously defined manipulator
-dynamics, expressed in terms of the state
-variables.
-
-The output consists of the two joint positions:
-
-\begin{equation}
-\boxed{
-\mathbf{y} =
-\mathbf{C}_y\mathbf{x}
-+\mathbf{D}\mathbf{u}
-}
-\label{eq:output}
+\label{eq:f}
 \end{equation}
 
-where
+The measured output is the pair of joint angles,
+$\mathbf{y}=\mathbf{C}_y\mathbf{x}$ with
+$\mathbf{C}_y=[\mathbf{I}_2\ \ \mathbf{0}_{2\times2}]$.
 
-\[
-\mathbf{C}_y =
-\begin{bmatrix}
-1&0&0&0\\
-0&1&0&0
-\end{bmatrix},
-\qquad
-\mathbf{D}=\mathbf{0}_{2\times2}.
-\]
+\subsection{Open-Loop Linearization}
 
-
-\subsection{Linearization About Equilibrium}
-
-We linearize the nonlinear system about the
-downward-hanging equilibrium
-
-\[
-\mathbf{x}^* =
-\begin{bmatrix}
-0&0&0&0
-\end{bmatrix}^{T},
-\qquad
-\mathbf{u}^* =
-\begin{bmatrix}
-0&0
-\end{bmatrix}^{T}.
-\]
-
-At this equilibrium,
-
-\[
-\mathbf{f}(\mathbf{x}^*,\mathbf{u}^*)=
-\mathbf{0}.
-\]
-
-Defining perturbations about the equilibrium,
-
-\[
-\delta\mathbf{x}
-=\mathbf{x}-\mathbf{x}^*,
-\qquad
-\delta\mathbf{u}
-=\mathbf{u}-\mathbf{u}^*,
-\]
-
-the first-order Taylor approximation gives
+The arm hanging straight down at rest with zero torque
+is an equilibrium \emph{state--input pair}
+$(\mathbf{x}^*,\mathbf{u}^*)=(\mathbf{0},\mathbf{0})$:
+the velocities are zero and
+$\boldsymbol{\tau}_g(\mathbf{0})=\mathbf{0}$, so
+$\mathbf{f}(\mathbf{x}^*,\mathbf{u}^*)=\mathbf{0}$.
+With $\delta\mathbf{x}=\mathbf{x}-\mathbf{x}^*$ and
+$\delta\mathbf{u}=\mathbf{u}-\mathbf{u}^*$, the
+first-order Taylor approximation is
 
 \begin{equation}
 \boxed{
@@ -319,102 +353,236 @@ the first-order Taylor approximation gives
 =
 \mathbf{A}\delta\mathbf{x}
 +
-\mathbf{B}_{\mathrm{lin}}\delta\mathbf{u}.
+\mathbf{B}_{\mathrm{lin}}\delta\mathbf{u},
 }
 \label{eq:linear_ss}
 \end{equation}
 
-The linearized system matrices are obtained
-from the Jacobians
+\[
+\mathbf{A}=\left.\frac{\partial\mathbf{f}}
+{\partial\mathbf{x}}\right|_{(\mathbf{x}^*,\mathbf{u}^*)},
+\qquad
+\mathbf{B}_{\mathrm{lin}}=\left.\frac{\partial\mathbf{f}}
+{\partial\mathbf{u}}\right|_{(\mathbf{x}^*,\mathbf{u}^*)}.
+\]
 
-\begin{align}
-\mathbf{A}
-&=
-\left.
-\frac{\partial\mathbf{f}}{\partial\mathbf{x}}
-\right|_{\mathbf{x}^*,\mathbf{u}^*},
-\label{eq:jacobian_A}
-\\
-\mathbf{B}_{\mathrm{lin}}
-&=
-\left.
-\frac{\partial\mathbf{f}}{\partial\mathbf{u}}
-\right|_{\mathbf{x}^*,\mathbf{u}^*}.
-\label{eq:jacobian_B}
-\end{align}
+Write the lower block of~\eqref{eq:f} as
+$\mathbf{M}^{-1}\mathbf{h}$ with
+$\mathbf{h}=-\mathbf{C}\dot{\boldsymbol{\theta}}
++\boldsymbol{\tau}_g+\mathbf{B}\mathbf{u}$. Then
+$\partial(\mathbf{M}^{-1}\mathbf{h})/\partial\boldsymbol{\theta}
+=(\partial\mathbf{M}^{-1}/\partial\boldsymbol{\theta})\,\mathbf{h}
++\mathbf{M}^{-1}\,\partial\mathbf{h}/\partial\boldsymbol{\theta}$,
+and the first term vanishes because
+$\mathbf{h}(\mathbf{x}^*,\mathbf{u}^*)=\mathbf{0}$.
+The Coriolis term $\mathbf{C}\dot{\boldsymbol{\theta}}$
+is a sum of products $\dot{\theta}_i\dot{\theta}_j$ with
+coefficients depending on $\theta_2$. Its derivative with
+respect to $\boldsymbol{\theta}$ is therefore proportional to
+$\dot{\theta}_i\dot{\theta}_j$, and its derivative with
+respect to $\dot{\boldsymbol{\theta}}$ is linear in
+$\dot{\boldsymbol{\theta}}$; both are zero at
+$\dot{\boldsymbol{\theta}}=\mathbf{0}$. Only gravity
+contributes, giving
 
-Evaluating these Jacobians at the equilibrium,
-the linearized system matrix is
+\begin{equation}
+\mathbf{A}=
+\begin{bmatrix}
+\mathbf{0} & \mathbf{I}_2\\
+\mathbf{K}_g & \mathbf{0}
+\end{bmatrix},
+\quad
+\mathbf{B}_{\mathrm{lin}}=
+\begin{bmatrix}
+\mathbf{0}\\ \mathbf{M}_0^{-1}\mathbf{B}
+\end{bmatrix},
+\quad
+\mathbf{K}_g=\mathbf{M}_0^{-1}\mathbf{G},
+\label{eq:AB}
+\end{equation}
+
+where $\mathbf{M}_0=\mathbf{M}(\mathbf{0})$ and
+$\mathbf{G}=\partial\boldsymbol{\tau}_g/\partial
+\boldsymbol{\theta}|_{\mathbf{0}}$, namely
 
 \[
 \adjustbox{max width=0.95\columnwidth}{$\displaystyle
-\mathbf{A} =
+\mathbf{M}_0=
 \begin{bmatrix}
-0&0&1&0\\[4pt]
-0&0&0&1\\[4pt]
--\dfrac{g}{l_1}
-&
-\dfrac{gm_2}{m_1l_1}
-&0&0\\[10pt]
-\dfrac{g}{l_1}
-&
--\dfrac{g[m_1l_1+m_2(l_1+l_2)]}
-{m_1l_1l_2}
-&0&0
-\end{bmatrix}
+(m_1+m_2)l_1^2+m_2l_2^2+2m_2l_1l_2 & m_2l_2(l_1+l_2)\\
+m_2l_2(l_1+l_2) & m_2l_2^2
+\end{bmatrix},
+\
+\mathbf{G}=-g
+\begin{bmatrix}
+(m_1+m_2)l_1+m_2l_2 & m_2l_2\\
+m_2l_2 & m_2l_2
+\end{bmatrix}.
 $}
 \]
 
-and the linearized input matrix is
+\textbf{Example values.} For $m_i=l_i=1$ and
+$g=9.81$: $\mathbf{M}_0=\begin{bsmallmatrix}5&2\\2&1\end{bsmallmatrix}$,
+$\mathbf{M}_0^{-1}=\begin{bsmallmatrix}1&-2\\-2&5\end{bsmallmatrix}$,
+$\mathbf{G}=-g\begin{bsmallmatrix}3&1\\1&1\end{bsmallmatrix}$, so
 
 \[
 \adjustbox{max width=0.95\columnwidth}{$\displaystyle
-\mathbf{B}_{\mathrm{lin}} =
-\frac{1}{m_1m_2l_1^2l_2^2}
+\mathbf{A}=
 \begin{bmatrix}
-0&0\\
-0&0\\
-m_2l_2^2&-m_2l_2(l_1+l_2)\\
--m_2l_2(l_1+l_2)&
-m_1l_1^2+m_2(l_1+l_2)^2
-\end{bmatrix}
+0&0&1&0\\
+0&0&0&1\\
+-9.81&9.81&0&0\\
+9.81&-29.43&0&0
+\end{bmatrix},
+\quad
+\mathbf{B}_{\mathrm{lin}}=
+\begin{bmatrix}
+0&0\\0&0\\1&-2\\-2&5
+\end{bmatrix}.
 $}
 \]
 
-The linearized output equation is
+The matrix $\mathbf{G}$ is symmetric negative definite and
+$\mathbf{M}_0$ is positive definite, so
+$\mathbf{K}_g=\mathbf{M}_0^{-1}\mathbf{G}$ is similar to the
+symmetric negative definite matrix
+$\mathbf{M}_0^{-1/2}\mathbf{G}\mathbf{M}_0^{-1/2}$ and
+has real negative eigenvalues $-\mu_i$. Each eigenvalue
+$\lambda$ of $\mathbf{A}$ then satisfies
+$\lambda^2=-\mu_i$, i.e.\ $\lambda=\pm j\sqrt{\mu_i}$. For
+the example, $\mu=g(2\pm\sqrt2)$ and the eigenvalues are
+$\pm j2.40$ and $\pm j5.79$~rad/s, which we confirmed
+numerically. With no dissipation in the model, this
+motivates a feedback law that adds damping. We will also
+check controllability and observability numerically.
+
+\section{Impedance Control (Primary Goal)}
+\label{sec:impedance}
+
+Let $\boldsymbol{\theta}_d$ be a desired (constant) joint
+configuration. We apply the torque law
 
 \begin{equation}
 \boxed{
-\delta\mathbf{y}
-=
-\mathbf{C}_y\delta\mathbf{x}
-+
-\mathbf{D}\delta\mathbf{u}.
+\mathbf{u} = -\boldsymbol{\tau}_g(\boldsymbol{\theta})
++\mathbf{K}(\boldsymbol{\theta}_d-\boldsymbol{\theta})
+-\mathbf{D}\dot{\boldsymbol{\theta}},
 }
-\label{eq:linear_output}
+\label{eq:impedance}
 \end{equation}
 
-The output matrices remain
+where $\mathbf{K},\mathbf{D}\in\mathbb{R}^{2\times2}$
+are symmetric positive definite stiffness and damping
+gains. Gravity is compensated, and the remaining
+terms act as a virtual spring-damper at each joint.
+Substituting into~\eqref{eq:eom} gives the closed
+loop
 
 \[
-\mathbf{C}_y =
-\begin{bmatrix}
-1&0&0&0\\
-0&1&0&0
-\end{bmatrix},
-\qquad
-\mathbf{D}=\mathbf{0}_{2\times2}.
+\mathbf{M}(\boldsymbol{\theta})\ddot{\boldsymbol{\theta}}
++\left(\mathbf{C}(\boldsymbol{\theta},\dot{\boldsymbol{\theta}})
++\mathbf{D}\right)\dot{\boldsymbol{\theta}}
++\mathbf{K}(\boldsymbol{\theta}-\boldsymbol{\theta}_d)
+=\boldsymbol{\tau}_{\mathrm{ext}}.
 \]
 
-The resulting fourth-order linear
-time-invariant (LTI) system describes the
-local dynamics of the robot arm near the
-downward equilibrium.
+With error $\mathbf{e}=\boldsymbol{\theta}-\boldsymbol{\theta}_d$ and
+state $\mathbf{z}=[\mathbf{e}^{T}\ \dot{\mathbf{e}}^{T}]^{T}$,
+linearizing about $\mathbf{z}=\mathbf{0}$,
+$\boldsymbol{\tau}_{\mathrm{ext}}=\mathbf{0}$ yields
 
-We will analyze its eigenvalues to characterize
-local stability and examine the controllability
-and observability of the linearized system.
+\begin{equation}
+\dot{\mathbf{z}} =
+\underbrace{\begin{bmatrix}
+\mathbf{0} & \mathbf{I}\\
+-\mathbf{M}_d^{-1}\mathbf{K} & -\mathbf{M}_d^{-1}\mathbf{D}
+\end{bmatrix}}_{\mathbf{A}_{cl}}\mathbf{z}
++
+\begin{bmatrix}
+\mathbf{0}\\ \mathbf{M}_d^{-1}
+\end{bmatrix}\boldsymbol{\tau}_{\mathrm{ext}},
+\label{eq:closed_loop}
+\end{equation}
 
+where $\mathbf{M}_d=\mathbf{M}(\boldsymbol{\theta}_d)$. This is
+a mass-spring-damper whose stiffness and damping we
+choose. Because $\mathbf{M}_d$, $\mathbf{K}$, and
+$\mathbf{D}$ are positive definite, $\mathbf{A}_{cl}$
+is Hurwitz. For the example arm with
+$\boldsymbol{\theta}_d=\mathbf{0}$,
+$\mathbf{K}=20\,\mathbf{I}$ and $\mathbf{D}=5\,\mathbf{I}$,
+the eigenvalues of $\mathbf{A}_{cl}$ are about
+$-24.4$, $-4.79$, and $-0.43\pm j1.80$. We will verify
+this in simulation. To keep the project tractable, we use
+diagonal gains and simulate in joint space only.
+
+\subsection*{Planned analysis and simulation}
+
+\begin{itemize}
+\item Eigenvalues of $\mathbf{A}_{cl}$ for a few
+choices of $\mathbf{K}$ and $\mathbf{D}$ at one or two
+values of $\boldsymbol{\theta}_d$.
+\item Nonlinear simulation (numerical ODE
+integration): step in $\boldsymbol{\theta}_d$ and a short
+disturbance torque pulse $\boldsymbol{\tau}_{\mathrm{ext}}$,
+compared against the linear model.
+\item Effect of stiffness versus damping on the
+response.
+\end{itemize}
+
+% \section{Admittance Control (If Time Permits)}
+
+% Admittance control is the dual of impedance control:
+% a measured external torque is mapped to a motion
+% offset, which is tracked by a stiff position loop. A
+% virtual mass-spring-damper
+
+% \begin{equation}
+% \mathbf{M}_v\ddot{\mathbf{x}}_v
+% +\mathbf{D}_v\dot{\mathbf{x}}_v
+% +\mathbf{K}_v\mathbf{x}_v
+% =\boldsymbol{\tau}_{\mathrm{ext}},
+% \qquad
+% \boldsymbol{\theta}_d=\boldsymbol{\theta}_{\mathrm{target}}+\mathbf{x}_v,
+% \label{eq:admittance}
+% \end{equation}
+
+% generates the commanded position, which is passed as
+% $\boldsymbol{\theta}_d$ to a high-gain version of the inner loop
+% in~\eqref{eq:impedance}. The system input is then a
+% commanded position rather than a torque. This reuses
+% the impedance controller as the inner loop, so it adds
+% only one extra filter. We would run the same
+% disturbance scenario as before and compare the two
+% responses.
+
+\section{Plan \& Deliverables}
+
+\begin{table}[htbp]
+\centering
+\caption{Proposed timeline.}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Stage & Task \\
+\midrule
+1 & Model, linearize, and verify numerically \\
+2 & Open-loop eigenvalue, controllability, observability \\
+3 & Impedance controller, closed-loop analysis, simulation \\
+4 & (Optional) Admittance controller and comparison \\
+5 & Final report and presentation \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+We will implement the nonlinear model and controllers
+in Python (NumPy/SciPy) and report the open-loop and
+closed-loop eigenvalues and the step and disturbance
+responses for a few gain choices. Success means a
+stable, well-damped closed loop that tracks
+$\boldsymbol{\theta}_d$ and deflects predictably under
+$\boldsymbol{\tau}_{\mathrm{ext}}$. All work is in
+simulation, with no hardware.
 
 \bibliographystyle{IEEEtran}
 \bibliography{mybibfile}
