@@ -34,10 +34,10 @@
 \newtheorem{corollary}{Corollary}
 
 \title{\LARGE \bf
-Impedance and Admittance Control of a 2-DOF Robot Arm
+Impedance Control of a 2-DOF Robot Arm
 }
 
-\author{Ashvin Anilkumar, Leo Xu}
+\author{Ashvin Anilkumar}
 
 \begin{document}
 
@@ -48,9 +48,7 @@ Impedance and Admittance Control of a 2-DOF Robot Arm
 
 \section{Introduction \& Motivation}
 
-A robot that touches its environment must regulate
-the relationship between motion and contact force,
-not motion alone. In this project, we study this
+In this project, we study this
 problem on the 2-DOF robot arm shown in
 Figure~\ref{fig:arm}. Its equations of motion
 contain nonlinear terms (sines and cosines) and
@@ -65,9 +63,6 @@ open-loop dynamics, (ii) show how the impedance law
 changes the local dynamics and stability, and
 (iii) evaluate the controller in simulation under
 reference changes and external disturbance torques.
-If time permits, our secondary goal is to design a
-position-based \emph{admittance controller}, the
-dual of impedance control, and compare the two.
 Throughout, we carry one concrete example arm so that
 every matrix below has numbers we can check.
 
@@ -289,6 +284,23 @@ values ($m_i=l_i=1$) these become
 $}
 \]
 
+\begin{remark}
+The matrix $\mathbf{C}$ above reproduces the correct
+Coriolis force $\mathbf{C}\dot{\boldsymbol{\theta}}$, but it
+is not the Christoffel-symbol factorization, so
+$\dot{\mathbf{M}}-2\mathbf{C}$ is not skew-symmetric.
+This does not affect the equations of motion, the
+linearization, or the simulations below. A passivity or
+Lyapunov argument that relies on skew-symmetry must instead
+use $\mathbf{C}_{\mathrm{ch}}=\begin{bsmallmatrix}
+-h\dot{\theta}_2 & -h(\dot{\theta}_1+\dot{\theta}_2)\\
+h\dot{\theta}_1 & 0\end{bsmallmatrix}$ with
+$h=m_2l_1l_2s_2$, which gives the same
+$\mathbf{C}_{\mathrm{ch}}\dot{\boldsymbol{\theta}}$ and satisfies
+$\dot{\mathbf{M}}-2\mathbf{C}_{\mathrm{ch}}$ skew-symmetric.
+We verified both facts numerically.
+\end{remark}
+
 \textbf{Second-order form.}
 For strictly positive masses and link lengths,
 $\mathbf{M}(\boldsymbol{\theta})$ is positive definite
@@ -453,9 +465,42 @@ $\lambda$ of $\mathbf{A}$ then satisfies
 $\lambda^2=-\mu_i$, i.e.\ $\lambda=\pm j\sqrt{\mu_i}$. For
 the example, $\mu=g(2\pm\sqrt2)$ and the eigenvalues are
 $\pm j2.40$ and $\pm j5.79$~rad/s, which we confirmed
-numerically. With no dissipation in the model, this
-motivates a feedback law that adds damping. We will also
-check controllability and observability numerically.
+numerically.
+
+\subsection{Open-Loop Analysis}
+
+\textbf{Stability.} All four eigenvalues of $\mathbf{A}$ lie
+on the imaginary axis, so the linearization is marginally
+stable: it oscillates at $2.40$ and $5.79$~rad/s and never
+settles, because the model has no dissipation. Such
+eigenvalues do not by themselves decide stability of the
+nonlinear system, but here energy conservation does: with
+$\mathbf{u}=\mathbf{0}$ the total energy is constant (drift
+below $10^{-8}$~J over 10~s in our simulation), so the arm
+swings indefinitely. This motivates a feedback law that
+adds damping.
+
+\textbf{Controllability.} The controllability matrix
+$[\mathbf{B}_{\mathrm{lin}}\ \ \mathbf{A}\mathbf{B}_{\mathrm{lin}}\
+\mathbf{A}^2\mathbf{B}_{\mathrm{lin}}\
+\mathbf{A}^3\mathbf{B}_{\mathrm{lin}}]\in\mathbb{R}^{4\times8}$
+has rank~4. This also follows from structure: since
+$\mathbf{A}\mathbf{B}_{\mathrm{lin}}=
+\begin{bsmallmatrix}\mathbf{M}_0^{-1}\\ \mathbf{0}\end{bsmallmatrix}$
+and $\mathbf{M}_0$ is invertible, the first two blocks
+$[\mathbf{B}_{\mathrm{lin}}\ \ \mathbf{A}\mathbf{B}_{\mathrm{lin}}]$
+alone have rank~4. With one motor per joint, every direction
+in $(\boldsymbol{\theta},\dot{\boldsymbol{\theta}})$ near the
+hanging equilibrium can be reached.
+
+\textbf{Observability.} With $\mathbf{C}_y=[\mathbf{I}_2\ \
+\mathbf{0}]$, we have
+$\mathbf{C}_y\mathbf{A}=[\mathbf{0}\ \ \mathbf{I}_2]$, so the
+first two block rows of the observability matrix already form
+$\mathbf{I}_4$ and the rank is~4. The velocities can be
+reconstructed from measured angles, so an observer could
+replace velocity sensors. We assume full-state measurement
+and do not need one here.
 
 \section{Impedance Control (Primary Goal)}
 \label{sec:impedance}
@@ -569,8 +614,7 @@ Stage & Task \\
 1 & Model, linearize, and verify numerically \\
 2 & Open-loop eigenvalue, controllability, observability \\
 3 & Impedance controller, closed-loop analysis, simulation \\
-4 & (Optional) Admittance controller and comparison \\
-5 & Final report and presentation \\
+4 & Final report and presentation \\
 \bottomrule
 \end{tabular}
 \end{table}
