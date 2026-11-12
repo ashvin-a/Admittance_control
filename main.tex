@@ -502,6 +502,89 @@ reconstructed from measured angles, so an observer could
 replace velocity sensors. We assume full-state measurement
 and do not need one here.
 
+\subsection{Stabilizability and Detectability}
+\label{sec:structural}
+
+By the PBH test, $(\mathbf{A},\mathbf{B})$ is
+\emph{stabilizable} iff
+$\operatorname{rank}[\lambda\mathbf{I}-\mathbf{A}\ \ \mathbf{B}]=4$
+for every eigenvalue with $\operatorname{Re}\lambda\ge0$, and
+$(\mathbf{C},\mathbf{A})$ is \emph{detectable} iff the dual
+condition holds. Every open-loop eigenvalue of the hanging
+arm lies on the imaginary axis, so there are no
+asymptotically stable modes, and for this arm stabilizable is
+equivalent to controllable and detectable is equivalent to
+observable: losing any mode is fatal. Table~\ref{tab:structural}
+summarizes the test at all four equilibria
+$\boldsymbol{\theta}^*\in\{0,\pi\}^2$ and with actuators or sensors
+removed, computed from numerical Jacobians of the nonlinear
+model.
+
+\begin{table}[htbp]
+\centering
+\caption{Structural properties of the linearization (rank out of 4).}
+\label{tab:structural}
+\adjustbox{max width=\columnwidth}{%
+\begin{tabular}{@{}llcc@{}}
+\toprule
+Case & Inputs / outputs & Ctrb./Obsv. & Stab./Det. \\
+\midrule
+All 4 equilibria, $g=9.81$ & $\mathbf{u}=[\tau_1,\tau_2]$, $\mathbf{y}=\boldsymbol{\theta}$ & 4 / 4 & yes / yes \\
+All 4 equilibria, $g=9.81$ & $\tau_1$ only or $\tau_2$ only & 4 & yes \\
+Hanging, $g=9.81$ & any single $\theta_i$ or $\dot\theta_i$ & 4 & yes \\
+Hanging, $g=0$ (horizontal) & $\tau_1$ only or $\tau_2$ only & 2 & \textbf{no} \\
+Hanging, $g=0$ (horizontal) & $\mathbf{y}=\dot{\boldsymbol{\theta}}$, $\theta_1$, or $\theta_2$ only & 2 & \textbf{no} \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\textbf{Unstable equilibria.} The upright configurations
+have eigenvalues in the open right half-plane (e.g.\
+$\pm2.40,\pm5.79$ for $\boldsymbol{\theta}^*=(\pi,0)$), but they are
+equally controllable and observable, so each can be
+stabilized locally by state feedback. Controllability is a
+property of $(\mathbf{A},\mathbf{B})$, not of open-loop stability.
+
+\textbf{Role of gravity.} With a single motor at joint $j$,
+$\mathbf{b}_j=[\mathbf{0};\mathbf{M}_0^{-1}\mathbf{e}_j]$. If $g=0$,
+$\mathbf{A}^2=\mathbf{0}$ and the controllability matrix is
+$[\mathbf{b}_j\ \ \mathbf{A}\mathbf{b}_j]$ with rank~2. Two modes at
+$s=0$ are lost, so the arm is not stabilizable. Likewise,
+velocity sensing alone cannot recover the absolute angles. With
+$g\neq0$, $\mathbf{K}_g$ is invertible and couples the joints, so
+one motor, or one sensor of any kind, recovers rank~4.
+
+\textbf{When can a single motor lose a mode?} Let the modes be
+$\mathbf{G}\mathbf{v}=-\mu\mathbf{M}_0\mathbf{v}$. The corresponding left
+eigenvector of $\mathbf{A}$ satisfies
+$\mathbf{w}^{T}\mathbf{b}_j\propto v_j$, and with
+$\mathbf{y}=\theta_j$ the right eigenvector gives
+$\mathbf{C}\mathbf{x}\propto v_j$. A motor or angle sensor at joint
+$j$ therefore misses a mode iff that mode shape has no motion at
+joint~$j$. Imposing $\mathbf{G}\mathbf{e}_1\parallel\mathbf{M}_0\mathbf{e}_1$
+gives $m_1l_1l_2=0$ (elbow only), and
+$\mathbf{G}\mathbf{e}_2\parallel\mathbf{M}_0\mathbf{e}_2$ gives $l_1=0$
+(shoulder only). For a real arm neither condition holds. As
+$m_1\to0$, however, the elbow-only margin $\min|v_2|/\|\mathbf{v}\|$
+shrinks like $m_1/2$. The rigid ``swing'' mode is then barely
+excited by an elbow torque. At $m_1=0.01$ a numerical Kalman rank
+test already reports rank~2 although the system is controllable,
+so near-degenerate cases should be decided by the PBH or modal
+test.
+
+\textbf{Constructive stabilization.} Linearizing the impedance
+law~\eqref{eq:impedance} at $\boldsymbol{\theta}_d=\mathbf{0}$ gives the
+state feedback
+$\delta\mathbf{u}=\mathbf{F}\delta\mathbf{x}$ with
+$\mathbf{F}=-[\mathbf{G}+\mathbf{K}\ \ \mathbf{D}]$, and
+$\mathbf{A}+\mathbf{B}_{\mathrm{lin}}\mathbf{F}=\mathbf{A}_{cl}$ is Hurwitz
+(Sec.~\ref{sec:impedance}). This exhibits stabilizability
+directly. In closed loop the disturbance channel
+$(\mathbf{A}_{cl},[\mathbf{0};\mathbf{M}_d^{-1}])$ stays controllable,
+and for $\mathbf{K}=k\mathbf{I}$, $\mathbf{D}=d\mathbf{I}$ the position
+block of its controllability Gramian is $\mathbf{I}/(2dk)$,
+independent of $\mathbf{M}_d$.
+
 \section{Impedance Control (Primary Goal)}
 \label{sec:impedance}
 
