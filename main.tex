@@ -659,32 +659,6 @@ compared against the linear model.
 response.
 \end{itemize}
 
-% \section{Admittance Control (If Time Permits)}
-
-% Admittance control is the dual of impedance control:
-% a measured external torque is mapped to a motion
-% offset, which is tracked by a stiff position loop. A
-% virtual mass-spring-damper
-
-% \begin{equation}
-% \mathbf{M}_v\ddot{\mathbf{x}}_v
-% +\mathbf{D}_v\dot{\mathbf{x}}_v
-% +\mathbf{K}_v\mathbf{x}_v
-% =\boldsymbol{\tau}_{\mathrm{ext}},
-% \qquad
-% \boldsymbol{\theta}_d=\boldsymbol{\theta}_{\mathrm{target}}+\mathbf{x}_v,
-% \label{eq:admittance}
-% \end{equation}
-
-% generates the commanded position, which is passed as
-% $\boldsymbol{\theta}_d$ to a high-gain version of the inner loop
-% in~\eqref{eq:impedance}. The system input is then a
-% commanded position rather than a torque. This reuses
-% the impedance controller as the inner loop, so it adds
-% only one extra filter. We would run the same
-% disturbance scenario as before and compare the two
-% responses.
-
 \section{Plan \& Deliverables}
 
 \begin{table}[htbp]
