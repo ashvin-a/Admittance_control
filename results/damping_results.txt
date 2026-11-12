@@ -1,0 +1,28 @@
+=== 1. Uniform damping design: modal zeta of A_cl (target 0.7) ===
+K=[[20., 0.], [ 0.,20.]] theta_d=[0. 0.]: zeta = [0.7 0.7 0.7 0.7]
+K=[[20., 0.], [ 0.,20.]] theta_d=[ 1.  -0.7]: zeta = [0.7 0.7 0.7 0.7]
+K=[[20., 0.], [ 0.,20.]] theta_d=[0.     1.5708]: zeta = [0.7 0.7 0.7 0.7]
+K=[[20., 0.], [ 0.,40.]] theta_d=[0. 0.]: zeta = [0.7 0.7 0.7 0.7]
+K=[[20., 0.], [ 0.,40.]] theta_d=[ 1.  -0.7]: zeta = [0.7 0.7 0.7 0.7]
+K=[[20., 0.], [ 0.,40.]] theta_d=[0.     1.5708]: zeta = [0.7 0.7 0.7 0.7]
+K=[[30., 5.], [ 5.,10.]] theta_d=[0. 0.]: zeta = [0.7 0.7 0.7 0.7]
+K=[[30., 5.], [ 5.,10.]] theta_d=[ 1.  -0.7]: zeta = [0.7 0.7 0.7 0.7]
+K=[[30., 5.], [ 5.,10.]] theta_d=[0.     1.5708]: zeta = [0.7 0.7 0.7 0.7]
+K=20I, zeta=0.7, theta_d=0: eig(A_cl) = [-7.5577-7.7104j -7.5577+7.7104j -1.2967-1.3229j -1.2967+1.3229j]
+   D = 2*0.7*sqrt(20)*M0^1/2 = [[13.282, 4.427], [4.427, 4.427]]
+
+=== 2. Scalar vs mass-aware damping (K = 20 I), nonlinear simulation ===
+case                                    large step 1.22 rad    small step 0.36 rad        pulse (4,-2) N.m, 0.3 s  peak |u| step
+                                      settle(s) / overshoot  settle(s) / overshoot      peak |e|(rad) / settle(s)          (N.m)
+D = 5I (proposal)                          6.95 /  13.2%         7.38 /  14.6%                0.103 /  8.77          21.7
+D = 10I (best scalar d for k=20)           2.81 /   3.9%         3.96 /   4.8%                0.063 /  5.54          20.8
+mass-aware, D fixed at theta_d             2.59 /   1.3%         2.79 /   1.4%                0.149 /  2.71          20.0
+mass-aware, D(theta) online                2.62 /   1.3%         2.79 /   1.4%                0.149 /  2.71          20.0
+
+=== 3. Global stability check (Prop. 1): V = 1/2 thd' M thd + 1/2 e' K e along random large motions ===
+D = 5I            : 20 random starts (|theta|<=pi, |thd|<=3): max relative rise of V between samples 0.0e+00, worst |x(40 s) - x*| = 1.0e-07
+mass-aware online : 20 random starts (|theta|<=pi, |thd|<=3): max relative rise of V between samples 1.1e-27, worst |x(40 s) - x*| = 1.6e-14
+
+=== 4. Gravity-model error: controller believes m2 = 0.9 kg (true 1.0) ===
+k=  20: steady error = [-0.0514 -0.0115] rad, first-order prediction K^-1 (tau_g - tau_g_hat) = [-0.0558 -0.0145]
+k=  80: steady error = [-0.0137 -0.0034] rad, first-order prediction K^-1 (tau_g - tau_g_hat) = [-0.0139 -0.0036]

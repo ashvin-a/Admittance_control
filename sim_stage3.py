@@ -16,7 +16,7 @@ os.makedirs("figures", exist_ok=True)
 
 # ---- plot style: validated categorical slots 1-3, neutral ink, recessive grid ----
 BLUE, ORANGE, AQUA = "#2a78d6", "#eb6834", "#1baf7a"
-INK, INK2, GRID, SURFACE = "#0b0b0b", "#52514e", "#e4e3df", "#fcfcfb"
+INK, INK2, GRID, SURFACE = "#0b0b0b", "#52514e", "#e4e3df", "#ffffff"
 plt.rcParams.update({
     "figure.facecolor": SURFACE, "axes.facecolor": SURFACE, "savefig.facecolor": SURFACE,
     "text.color": INK, "axes.labelcolor": INK2, "xtick.color": INK2, "ytick.color": INK2,
@@ -80,8 +80,6 @@ for ax, axd, (name, dth) in zip(axs, axs2[1], steps.items()):
 axs[0].set_ylabel("joint angle (rad)")
 axs2[1][0].set_ylabel("nonlinear $-$ linear (mrad)")
 axs[0].legend(loc="center right", ncol=1)
-fig.suptitle("Impedance control, K = 20I, D = 5I: step in the desired configuration (dotted = target)",
-             fontsize=9, color=INK2, y=1.0)
 fig.tight_layout()
 fig.savefig("figures/stage3_step.png", bbox_inches="tight")
 plt.close(fig)
@@ -111,7 +109,6 @@ axs[1].set_xlabel("time (s)")
 axs[0].legend(loc="upper right", ncol=2)
 axs[1].legend(loc="lower right", ncol=2)
 axs[1].set_xlim(0, T)
-fig.suptitle("Disturbance pulse, K = 20I, D = 5I", fontsize=9, color=INK2)
 fig.tight_layout()
 fig.savefig("figures/stage3_pulse.png", bbox_inches="tight")
 plt.close(fig)
@@ -167,7 +164,6 @@ for ax, (title, cfgs, lab) in zip(axs, panels):
     ax.set_xlim(0, 12)
     ax.legend(loc="upper right")
 axs[0].set_ylabel(r"$\|e\| / \|e(0)\|$")
-fig.suptitle(r"Step $\Delta\theta_d$ = [0.3, -0.2] rad, nonlinear simulation", fontsize=9, color=INK2)
 fig.tight_layout()
 fig.savefig("figures/stage3_sweep.png", bbox_inches="tight")
 plt.close(fig)

@@ -18,6 +18,14 @@
 \usetikzlibrary{arrows.meta,calc}
 \usepackage[thmmarks, amsmath]{ntheorem}
 
+% let floats share pages with text instead of collecting at the end
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\dbltopfraction}{0.9}
+\renewcommand{\bottomfraction}{0.6}
+\renewcommand{\textfraction}{0.1}
+\renewcommand{\floatpagefraction}{0.85}
+\renewcommand{\dblfloatpagefraction}{0.85}
+
 \DeclareMathOperator{\diff}{d}
 \newcommand{\ddt}{\tfrac{\diff}{\diff \! t}}
 \providecommand{\norm}[1]{\lVert#1\rVert}
@@ -46,25 +54,68 @@ Impedance Control of a 2-DOF Robot Arm
 \pagestyle{plain}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{Introduction \& Motivation}
+\begin{abstract}
+We study joint-space impedance control of a two-link arm
+moving in a vertical plane. We derive the nonlinear model
+and its state-space form, linearize it about the hanging
+equilibrium, and test controllability, observability,
+stabilizability and detectability at every equilibrium and
+with actuators or sensors removed. The impedance law,
+gravity compensation plus a virtual spring and damper,
+turns the closed loop into a mass-spring-damper whose
+stiffness and damping we choose. An energy function proves
+global asymptotic stability and shows that the closed loop
+is passive with respect to external torques. Because the
+arm's inertia differs by a factor of up to 34 between
+directions, a single damping gain cannot damp both modes.
+A damping matrix built from the square root of the inertia
+matrix gives every mode the same damping ratio. In
+nonlinear simulation this design settles a 1.22~rad step in
+2.6~s with 1.3\% overshoot, against 7.0~s and 13\% for the
+original gains, at the cost of a larger peak deflection
+under a sharp push.
+\end{abstract}
 
-In this project, we study this
-problem on the 2-DOF robot arm shown in
-Figure~\ref{fig:arm}. Its equations of motion
-contain nonlinear terms (sines and cosines) and
-make it a simple but representative manipulator.
+\section{Introduction}
 
-Our primary goal is to design and analyze a
-torque-based \emph{impedance controller}
-\cite{hogan1985impedance}, which makes the arm
-behave like a virtual spring-damper about a desired
-trajectory. We will (i) derive and linearize the
-open-loop dynamics, (ii) show how the impedance law
-changes the local dynamics and stability, and
-(iii) evaluate the controller in simulation under
-reference changes and external disturbance torques.
-Throughout, we carry one concrete example arm so that
-every matrix below has numbers we can check.
+A robot that works next to people, or that touches its
+surroundings, cannot simply follow positions. A stiff
+position controller pressed against a rigid surface turns a
+small position error into a large contact force.
+\emph{Impedance control}~\cite{hogan1985impedance} regulates
+the relation between motion and force instead: the robot
+responds to a push like a mass-spring-damper chosen by the
+designer. The simplest form needs only joint measurements.
+It is a proportional-derivative law with gravity
+compensation, and its global stability for rigid
+manipulators goes back to Takegaki and
+Arimoto~\cite{takegaki1981}.
+
+We study this controller on the 2-DOF arm in
+Fig.~\ref{fig:arm}. Its equations of motion are nonlinear
+(sines, cosines and products of velocities), yet small
+enough that every matrix can be written out and checked.
+Throughout, we carry one concrete example arm, and every
+number in the paper is reproduced by a script that
+simulates the full nonlinear model. The contributions are:
+\begin{itemize}
+\item a state-space model, its linearization, and the
+open-loop behavior (Sec.~\ref{sec:model});
+\item a structural analysis: controllability, observability,
+stabilizability and detectability at all four equilibria,
+with one actuator or one sensor removed, and without
+gravity, together with a condition for when a single joint
+motor misses a mode (Sec.~\ref{sec:structural});
+\item the impedance law with its static stiffness, a global
+stability proof, passivity, and the local eigenvalues
+(Sec.~\ref{sec:impedance});
+\item an explanation of why scalar damping gains cannot damp
+both modes, and a damping matrix that gives every mode the
+same damping ratio (Sec.~\ref{sec:damping});
+\item nonlinear simulations that test each prediction,
+including the effect of an error in the gravity model
+(Sec.~\ref{sec:results}).
+\end{itemize}
 
 \section{System, Inputs \& Notation}
 
@@ -146,7 +197,7 @@ the virtual spring pulls toward.
 \subsection{Notation}
 
 Table~\ref{tab:notation} lists every symbol used in
-this proposal. Vectors and matrices are bold; a dot is
+this paper. Vectors and matrices are bold; a dot is
 a time derivative.
 
 \begin{table}[htbp]
@@ -179,6 +230,7 @@ $\mathbf{K},\mathbf{D}$ & virtual stiffness and damping gains & $2\times2$ \\
 \end{table}
 
 \subsection{Control objective}
+\label{sec:objective}
 
 Given a constant desired configuration
 $\boldsymbol{\theta}_d$, design a state-feedback law
@@ -193,6 +245,7 @@ $\mathbf{K}\mathbf{e}=\boldsymbol{\tau}_{\mathrm{ext}}$ at
 rest, with $\mathbf{K}$ and $\mathbf{D}$ chosen by us.
 
 \section{Mathematical Model \& Linearization}
+\label{sec:model}
 
 \subsection{Dynamics}
 
@@ -290,8 +343,11 @@ Coriolis force $\mathbf{C}\dot{\boldsymbol{\theta}}$, but it
 is not the Christoffel-symbol factorization, so
 $\dot{\mathbf{M}}-2\mathbf{C}$ is not skew-symmetric.
 This does not affect the equations of motion, the
-linearization, or the simulations below. A passivity or
-Lyapunov argument that relies on skew-symmetry must instead
+linearization, or the simulations below. The stability proof
+of Sec.~\ref{sec:impedance} needs only the scalar identity
+$\dot{\boldsymbol{\theta}}^{T}(\dot{\mathbf{M}}-2\mathbf{C})\dot{\boldsymbol{\theta}}=0$,
+which every valid $\mathbf{C}$ satisfies. An argument that
+applies $\dot{\mathbf{M}}-2\mathbf{C}$ to other vectors must instead
 use $\mathbf{C}_{\mathrm{ch}}=\begin{bsmallmatrix}
 -h\dot{\theta}_2 & -h(\dot{\theta}_1+\dot{\theta}_2)\\
 h\dot{\theta}_1 & 0\end{bsmallmatrix}$ with
@@ -505,7 +561,7 @@ and do not need one here.
 \subsection{Stabilizability and Detectability}
 \label{sec:structural}
 
-By the PBH test, $(\mathbf{A},\mathbf{B})$ is
+By the PBH test~\cite{chen1999}, $(\mathbf{A},\mathbf{B})$ is
 \emph{stabilizable} iff
 $\operatorname{rank}[\lambda\mathbf{I}-\mathbf{A}\ \ \mathbf{B}]=4$
 for every eigenvalue with $\operatorname{Re}\lambda\ge0$, and
@@ -585,8 +641,10 @@ and for $\mathbf{K}=k\mathbf{I}$, $\mathbf{D}=d\mathbf{I}$ the position
 block of its controllability Gramian is $\mathbf{I}/(2dk)$,
 independent of $\mathbf{M}_d$.
 
-\section{Impedance Control (Primary Goal)}
+\section{Impedance Control}
 \label{sec:impedance}
+
+\subsection{Control law and closed loop}
 
 Let $\boldsymbol{\theta}_d$ be a desired (constant) joint
 configuration. We apply the torque law
@@ -602,22 +660,107 @@ configuration. We apply the torque law
 
 where $\mathbf{K},\mathbf{D}\in\mathbb{R}^{2\times2}$
 are symmetric positive definite stiffness and damping
-gains. Gravity is compensated, and the remaining
-terms act as a virtual spring-damper at each joint.
-Substituting into~\eqref{eq:eom} gives the closed
-loop
+gains. The first term cancels gravity, and the other two
+act as a virtual spring and damper that pull the arm toward
+$\boldsymbol{\theta}_d$. Substituting into~\eqref{eq:eom} gives
+the closed loop
 
-\[
+\begin{equation}
 \mathbf{M}(\boldsymbol{\theta})\ddot{\boldsymbol{\theta}}
 +\left(\mathbf{C}(\boldsymbol{\theta},\dot{\boldsymbol{\theta}})
 +\mathbf{D}\right)\dot{\boldsymbol{\theta}}
-+\mathbf{K}(\boldsymbol{\theta}-\boldsymbol{\theta}_d)
-=\boldsymbol{\tau}_{\mathrm{ext}}.
-\]
++\mathbf{K}\mathbf{e}
+=\boldsymbol{\tau}_{\mathrm{ext}},
+\qquad
+\mathbf{e}=\boldsymbol{\theta}-\boldsymbol{\theta}_d .
+\label{eq:cl_nl}
+\end{equation}
 
-With error $\mathbf{e}=\boldsymbol{\theta}-\boldsymbol{\theta}_d$ and
-state $\mathbf{z}=[\mathbf{e}^{T}\ \dot{\mathbf{e}}^{T}]^{T}$,
-linearizing about $\mathbf{z}=\mathbf{0}$,
+\textbf{Static stiffness.} If $\boldsymbol{\tau}_{\mathrm{ext}}$
+is constant and the arm comes to rest, the first two terms
+of~\eqref{eq:cl_nl} vanish and
+\begin{equation}
+\mathbf{K}\mathbf{e}=\boldsymbol{\tau}_{\mathrm{ext}}
+\quad\Longleftrightarrow\quad
+\mathbf{e}=\mathbf{K}^{-1}\boldsymbol{\tau}_{\mathrm{ext}} .
+\label{eq:static}
+\end{equation}
+The deflection depends only on the chosen stiffness, not on
+the masses, the pose or gravity. This is part~(ii) of the
+control objective in Sec.~\ref{sec:objective}.
+
+\subsection{Global stability and passivity}
+
+\begin{proposition}
+\label{prop:gas}
+Let $\mathbf{K}$ and $\mathbf{D}$ be symmetric positive definite
+and $\boldsymbol{\tau}_{\mathrm{ext}}=\mathbf{0}$. Then the
+equilibrium $(\boldsymbol{\theta},\dot{\boldsymbol{\theta}})=
+(\boldsymbol{\theta}_d,\mathbf{0})$ of~\eqref{eq:cl_nl} is globally
+asymptotically stable. For any
+$\boldsymbol{\tau}_{\mathrm{ext}}(t)$, the function $V$ below
+satisfies
+$\dot V\le\dot{\boldsymbol{\theta}}^{T}\boldsymbol{\tau}_{\mathrm{ext}}$.
+\end{proposition}
+
+\textit{Proof.} Take the kinetic energy plus the energy stored
+in the virtual spring,
+\begin{equation}
+V=\tfrac12\dot{\boldsymbol{\theta}}^{T}\mathbf{M}(\boldsymbol{\theta})
+\dot{\boldsymbol{\theta}}+\tfrac12\mathbf{e}^{T}\mathbf{K}\mathbf{e}.
+\label{eq:lyap}
+\end{equation}
+Since $\det\mathbf{M}=m_2l_1^2l_2^2(m_1+m_2\sin^2\theta_2)\ge
+m_1m_2l_1^2l_2^2>0$ and the entries of $\mathbf{M}$ are bounded,
+the smallest eigenvalue of $\mathbf{M}(\boldsymbol{\theta})$ is
+bounded below by a positive constant. Hence $V$ is positive
+definite and radially unbounded in
+$(\mathbf{e},\dot{\boldsymbol{\theta}})$. Along~\eqref{eq:cl_nl},
+\[
+\dot V=-\dot{\boldsymbol{\theta}}^{T}\mathbf{D}\dot{\boldsymbol{\theta}}
++\dot{\boldsymbol{\theta}}^{T}\boldsymbol{\tau}_{\mathrm{ext}}
++\dot{\boldsymbol{\theta}}^{T}\big(\tfrac12\dot{\mathbf{M}}-\mathbf{C}\big)
+\dot{\boldsymbol{\theta}}.
+\]
+The last term is zero. With $\mathbf{u}=\mathbf{0}$ and
+$\boldsymbol{\tau}_{\mathrm{ext}}=\mathbf{0}$ the open-loop energy
+$E=\tfrac12\dot{\boldsymbol{\theta}}^{T}\mathbf{M}\dot{\boldsymbol{\theta}}+P(\boldsymbol{\theta})$,
+with $\boldsymbol{\tau}_g=-\partial P/\partial\boldsymbol{\theta}$,
+has $\dot E=\dot{\boldsymbol{\theta}}^{T}(\tfrac12\dot{\mathbf{M}}-\mathbf{C})
+\dot{\boldsymbol{\theta}}$, and $E$ is conserved for every state.
+This uses only the vector $\mathbf{C}\dot{\boldsymbol{\theta}}$, so it
+holds for the $\mathbf{C}$ of Sec.~\ref{sec:model} (Remark~1);
+numerically the term is below $5\times10^{-9}$. Thus
+$\dot V\le\dot{\boldsymbol{\theta}}^{T}\boldsymbol{\tau}_{\mathrm{ext}}$,
+and with $\boldsymbol{\tau}_{\mathrm{ext}}=\mathbf{0}$,
+$\dot V=-\dot{\boldsymbol{\theta}}^{T}\mathbf{D}\dot{\boldsymbol{\theta}}\le0$.
+On the set $\dot V=0$ we have $\dot{\boldsymbol{\theta}}\equiv\mathbf{0}$,
+so $\ddot{\boldsymbol{\theta}}\equiv\mathbf{0}$ and~\eqref{eq:cl_nl}
+gives $\mathbf{K}\mathbf{e}=\mathbf{0}$, i.e.\ $\mathbf{e}=\mathbf{0}$.
+The largest invariant set in $\{\dot V=0\}$ is the equilibrium,
+and LaSalle's invariance principle~\cite{khalil2002} gives global
+asymptotic stability. \hfill$\square$
+
+Two consequences matter below. First, the proof is unchanged
+if $\mathbf{D}$ is replaced by a symmetric matrix function
+$\mathbf{D}(\boldsymbol{\theta})$ whose eigenvalues are bounded below
+by a positive constant. Second, the inequality
+$\dot V\le\dot{\boldsymbol{\theta}}^{T}\boldsymbol{\tau}_{\mathrm{ext}}$
+says the closed loop is \emph{passive} from
+$\boldsymbol{\tau}_{\mathrm{ext}}$ to $\dot{\boldsymbol{\theta}}$
+with storage $V$~\cite{khalil2002,spong2006}. Over any time
+interval the arm can return no more energy than it stored
+initially plus what the environment put in. The feedback
+connection of passive systems is again passive~\cite{khalil2002},
+so when the arm touches a passive environment (a spring, a
+damper, a mass) the energy stored in the two together cannot
+grow. This is the property that makes impedance control safe in
+contact~\cite{hogan1985impedance}.
+
+\subsection{Local analysis}
+
+With $\mathbf{z}=[\mathbf{e}^{T}\ \dot{\mathbf{e}}^{T}]^{T}$,
+linearizing~\eqref{eq:cl_nl} about $\mathbf{z}=\mathbf{0}$,
 $\boldsymbol{\tau}_{\mathrm{ext}}=\mathbf{0}$ yields
 
 \begin{equation}
@@ -633,57 +776,345 @@ $\boldsymbol{\tau}_{\mathrm{ext}}=\mathbf{0}$ yields
 \label{eq:closed_loop}
 \end{equation}
 
-where $\mathbf{M}_d=\mathbf{M}(\boldsymbol{\theta}_d)$. This is
-a mass-spring-damper whose stiffness and damping we
-choose. Because $\mathbf{M}_d$, $\mathbf{K}$, and
-$\mathbf{D}$ are positive definite, $\mathbf{A}_{cl}$
-is Hurwitz. For the example arm with
-$\boldsymbol{\theta}_d=\mathbf{0}$,
-$\mathbf{K}=20\,\mathbf{I}$ and $\mathbf{D}=5\,\mathbf{I}$,
-the eigenvalues of $\mathbf{A}_{cl}$ are about
-$-24.4$, $-4.79$, and $-0.43\pm j1.80$. We will verify
-this in simulation. To keep the project tractable, we use
-diagonal gains and simulate in joint space only.
+where $\mathbf{M}_d=\mathbf{M}(\boldsymbol{\theta}_d)$. The Coriolis
+term drops out because it is quadratic in the velocities, so
+the linearization is a mass-spring-damper with the arm's
+inertia and the stiffness and damping we choose. Applying the
+argument of Proposition~\ref{prop:gas} to this linear system
+with $V=\tfrac12\dot{\mathbf{e}}^{T}\mathbf{M}_d\dot{\mathbf{e}}
++\tfrac12\mathbf{e}^{T}\mathbf{K}\mathbf{e}$ shows that
+$\mathbf{A}_{cl}$ is Hurwitz whenever $\mathbf{M}_d$, $\mathbf{K}$
+and $\mathbf{D}$ are positive definite. For the example arm with
+$\boldsymbol{\theta}_d=\mathbf{0}$, $\mathbf{K}=20\,\mathbf{I}$ and
+$\mathbf{D}=5\,\mathbf{I}$, the gains of our proposal, the
+eigenvalues of $\mathbf{A}_{cl}$ are $-24.4$, $-4.79$ and
+$-0.43\pm j1.80$. The pair $-0.43\pm j1.80$ is lightly damped and
+dominates the response; Sec.~\ref{sec:damping} explains why.
 
-\subsection*{Planned analysis and simulation}
+\section{Damping Design}
+\label{sec:damping}
 
-\begin{itemize}
-\item Eigenvalues of $\mathbf{A}_{cl}$ for a few
-choices of $\mathbf{K}$ and $\mathbf{D}$ at one or two
-values of $\boldsymbol{\theta}_d$.
-\item Nonlinear simulation (numerical ODE
-integration): step in $\boldsymbol{\theta}_d$ and a short
-disturbance torque pulse $\boldsymbol{\tau}_{\mathrm{ext}}$,
-compared against the linear model.
-\item Effect of stiffness versus damping on the
-response.
-\end{itemize}
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/stage3_step.png}
+\caption{Step in $\boldsymbol{\theta}_d$ with $\mathbf{K}=20\mathbf{I}$,
+$\mathbf{D}=5\mathbf{I}$. Top: joint angles from the nonlinear
+simulation (thick) and the linear model (dashed); dotted lines are
+the targets. Bottom: nonlinear minus linear, in mrad. The ringing
+at about 1.8~rad/s is the whole-arm mode with $\zeta=0.23$.}
+\label{fig:step}
+\end{figure*}
 
-\section{Plan \& Deliverables}
+\subsection{Why one damping gain cannot suit both modes}
+
+Let $\mathbf{K}=k\mathbf{I}$ and $\mathbf{D}=d\mathbf{I}$, and let
+$m_i$, $\mathbf{v}_i$ be the eigenvalues and eigenvectors of
+$\mathbf{M}_d$. Then $\mathbf{M}_d^{-1}\mathbf{K}$ and
+$\mathbf{M}_d^{-1}\mathbf{D}$ share the eigenvectors $\mathbf{v}_i$,
+and~\eqref{eq:closed_loop} splits into two scalar systems,
+\begin{equation}
+m_i s^2+d\,s+k=0,\qquad
+\omega_{n,i}=\sqrt{k/m_i},\qquad
+\zeta_i=\frac{d}{2\sqrt{k\,m_i}} .
+\label{eq:modal}
+\end{equation}
+The ratio of the two damping ratios is
+$\sqrt{m_{\max}/m_{\min}}$, whatever $k$ and $d$ are. For the
+example arm $\mathbf{M}$ depends only on $\theta_2$. With the arm
+straight ($\theta_2=0$) its eigenvalues are $0.17$ and
+$5.83$~kg$\cdot$m$^2$, with eigenvectors $(0.41,-1)$ and
+$(1,0.41)$. The heavy direction is the whole arm swinging with
+the elbow nearly straight. The light direction is the forearm
+moving against the upper arm. The ratio is 34, so the two
+damping ratios differ by a factor of $\sqrt{34}\approx5.8$. With
+$k=20$, $d=5$ the forearm mode is overdamped ($\zeta=1.35$) while
+the whole-arm mode rings ($\zeta=0.23$). Raising $d$ to fix the
+second overdamps the first further. With the elbow folded
+($\theta_2=\pi$) both eigenvalues equal 1 and the problem
+disappears, so the difficulty depends on the pose.
+
+\subsection{A uniform damping ratio}
+
+For any symmetric positive definite $\mathbf{K}$, choose
+\begin{equation}
+\mathbf{D}=2\zeta\,\mathbf{M}_d^{1/2}\,\boldsymbol{\Omega}\,
+\mathbf{M}_d^{1/2},
+\qquad
+\boldsymbol{\Omega}=\big(\mathbf{M}_d^{-1/2}\mathbf{K}
+\mathbf{M}_d^{-1/2}\big)^{1/2}.
+\label{eq:uniformD}
+\end{equation}
+Substituting $\mathbf{e}=\mathbf{M}_d^{-1/2}\mathbf{q}$ into the
+unforced linear closed loop
+$\mathbf{M}_d\ddot{\mathbf{e}}+\mathbf{D}\dot{\mathbf{e}}+\mathbf{K}\mathbf{e}=\mathbf{0}$
+and multiplying by $\mathbf{M}_d^{-1/2}$ gives
+$\ddot{\mathbf{q}}+2\zeta\boldsymbol{\Omega}\dot{\mathbf{q}}
++\boldsymbol{\Omega}^2\mathbf{q}=\mathbf{0}$. Since
+$\boldsymbol{\Omega}$ is symmetric positive definite, it has an
+orthonormal eigenbasis, and each mode obeys
+$s^2+2\zeta\omega_i s+\omega_i^2=0$, where $\omega_i^2$ are the
+eigenvalues of $\mathbf{M}_d^{-1}\mathbf{K}$. Every mode therefore
+has damping ratio exactly $\zeta$. The matrix $\mathbf{D}$ is
+congruent to $2\zeta\boldsymbol{\Omega}$, hence symmetric positive
+definite, and Proposition~\ref{prop:gas} still applies. For
+$\mathbf{K}=k\mathbf{I}$ the formula reduces to
+\begin{equation}
+\mathbf{D}=2\zeta\sqrt{k}\,\mathbf{M}_d^{1/2}.
+\label{eq:uniformDk}
+\end{equation}
+This coincides with the double-diagonalization damping design
+used for Cartesian impedance control~\cite{albuschaeffer2003}
+when all modal damping ratios are equal. We checked numerically
+that~\eqref{eq:uniformD} gives $\zeta_i=0.7$ for all four
+eigenvalues with $\mathbf{K}\in\{20\mathbf{I},\,
+\mathrm{diag}(20,40),\,\begin{bsmallmatrix}30&5\\5&10\end{bsmallmatrix}\}$
+at three poses.
+
+For $k=20$, $\zeta=0.7$ and $\boldsymbol{\theta}_d=\mathbf{0}$,
+\[
+\mathbf{D}=\begin{bmatrix}13.28&4.43\\4.43&4.43\end{bmatrix}
+\ \mathrm{N\cdot m\cdot s/rad},
+\]
+and the eigenvalues of $\mathbf{A}_{cl}$ become
+$-7.56\pm j7.71$ and $-1.30\pm j1.32$. The slowest decay rate
+rises from $0.43$ to $1.30$~s$^{-1}$. Because
+$\mathbf{M}_d$ depends on $\boldsymbol{\theta}_d$, $\mathbf{D}$ must be
+recomputed for each target. An alternative evaluates
+$\mathbf{D}(\boldsymbol{\theta})=2\zeta\sqrt{k}\,\mathbf{M}(\boldsymbol{\theta})^{1/2}$
+online; its eigenvalues are bounded below because those of
+$\mathbf{M}$ are, so Proposition~\ref{prop:gas} covers it too.
+
+\section{Simulation Results}
+\label{sec:results}
+
+We integrate the full nonlinear model~\eqref{eq:f} in Python
+with SciPy's DOP853 integrator (relative tolerance $10^{-9}$,
+maximum step 5~ms), with $m_i=l_i=1$ and exact gravity
+compensation unless stated. The model code is first checked
+against an independent derivation of $\mathbf{M}$ and
+$\boldsymbol{\tau}_g$ from kinetic and potential energy. Settling
+time is the last time $\|\mathbf{e}\|$ exceeds 2\% of the step
+size, and overshoot is the largest motion past the target along
+the step direction.
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/stage3_sweep.png}
+\caption{Normalized error for the step of $(0.3,-0.2)$~rad with
+scalar gains. Left: stiffness $k$ with $d=10$. Right: damping $d$
+with $k=20$.}
+\label{fig:sweep}
+\end{figure*}
+
+\subsection{Does the linear model describe the arm?}
+
+Table~\ref{tab:validity} compares the nonlinear simulation with
+the predictions of~\eqref{eq:closed_loop} and~\eqref{eq:static}.
+To identify the eigenvalues, we fit a discrete-time linear map
+by least squares to a small-amplitude nonlinear trajectory and
+convert its eigenvalues to continuous time. They match
+$\mathbf{A}_{cl}$ to $1.8\times10^{-3}$. Steps in
+$\boldsymbol{\theta}_d$ (Fig.~\ref{fig:step}) agree to 0.04\% of
+the step size for a 0.12~rad step and to 3.4\% for a 1.22~rad
+step. The linear model stays accurate for large motions because
+gravity is cancelled exactly and the Coriolis torques remain
+small at these speeds. Under a 0.3~s push the error peaks at
+0.103~rad (Fig.~\ref{fig:pulse}), and the linear model matches
+to 0.1\% of the peak. Under a constant push the steady error
+equals $\mathbf{K}^{-1}\boldsymbol{\tau}_{\mathrm{ext}}$ to machine
+precision at two poses, confirming~\eqref{eq:static}.
 
 \begin{table}[htbp]
 \centering
-\caption{Proposed timeline.}
-\begin{tabular}{@{}ll@{}}
+\caption{Nonlinear simulation versus linear predictions
+($\mathbf{K}=20\mathbf{I}$, $\mathbf{D}=5\mathbf{I}$ unless noted).}
+\label{tab:validity}
+\adjustbox{max width=\columnwidth}{%
+\begin{tabular}{@{}lll@{}}
 \toprule
-Stage & Task \\
+Test & Result & Agreement \\
 \midrule
-1 & Model, linearize, and verify numerically \\
-2 & Open-loop eigenvalue, controllability, observability \\
-3 & Impedance controller, closed-loop analysis, simulation \\
-4 & Final report and presentation \\
+Eigenvalues of $\mathbf{A}_{cl}$ & identified from simulation & $1.8\times10^{-3}$ \\
+Step, 0.12~rad & settling 7.39~s (linear 7.39~s) & 0.04\% of step \\
+Step, 1.22~rad & settling 6.95~s (linear 6.92~s) & 3.4\% of step \\
+Push $(4,-2)$~N$\cdot$m, 0.3~s & peak error 0.103~rad & 0.1\% of peak \\
+Constant push, $\mathbf{K}=\mathrm{diag}(20,40)$ & $\mathbf{e}_{ss}$ vs.\ $\mathbf{K}^{-1}\boldsymbol{\tau}_{\mathrm{ext}}$ & $2\times10^{-15}$ \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
-We will implement the nonlinear model and controllers
-in Python (NumPy/SciPy) and report the open-loop and
-closed-loop eigenvalues and the step and disturbance
-responses for a few gain choices. Success means a
-stable, well-damped closed loop that tracks
-$\boldsymbol{\theta}_d$ and deflects predictably under
-$\boldsymbol{\tau}_{\mathrm{ext}}$. All work is in
-simulation, with no hardware.
+\begin{figure}[!t]
+\centering
+\includegraphics[width=0.9\columnwidth]{figures/stage3_pulse.png}
+\caption{Push of $(4,-2)$~N$\cdot$m for 0.3~s at
+$\boldsymbol{\theta}_d=\mathbf{0}$, $\mathbf{K}=20\mathbf{I}$,
+$\mathbf{D}=5\mathbf{I}$. The arm yields and returns; the linear
+model (dashed) overlaps the nonlinear response.}
+\label{fig:pulse}
+\end{figure}
+
+\textbf{Global stability.} To test Proposition~\ref{prop:gas} away
+from the linear regime we started the arm from 20 random states
+with $|\theta_i|\le\pi$ and $|\dot\theta_i|\le3$~rad/s, with
+$\boldsymbol{\theta}_d=(0.5,0.5)$. For both $\mathbf{D}=5\mathbf{I}$ and
+the online $\mathbf{D}(\boldsymbol{\theta})$ of Sec.~\ref{sec:damping},
+$V$ never increased between samples, and after 40~s every
+trajectory was within $10^{-7}$ of the equilibrium.
+
+\subsection{Stiffness versus damping with scalar gains}
+
+Table~\ref{tab:grid} and Fig.~\ref{fig:sweep} show a step of
+$(0.3,-0.2)$~rad for $\mathbf{K}=k\mathbf{I}$, $\mathbf{D}=d\mathbf{I}$.
+Raising $k$ with $d$ fixed speeds up the response but lowers the
+smallest modal damping ratio, so overshoot grows (15\% at $k=80$,
+$d=10$). Raising $d$ with $k$ fixed removes the overshoot, but past
+a point it slows the response: both modes become overdamped, and
+the slow pole of each approaches $-k/d$ (for $k=5$, $d=40$ the arm
+has not settled after 20~s). The smallest modal $\zeta$ in the grid
+tracks the overshoot closely, as~\eqref{eq:modal} predicts. In
+every entry the two damping ratios differ by a factor of 5.7
+($\sqrt{m_{\max}/m_{\min}}$ at this target), so no scalar pair puts
+both modes near $\zeta=0.7$.
+
+\begin{table}[htbp]
+\centering
+\caption{Scalar gains, step of $(0.3,-0.2)$~rad: 2\% settling time
+(s) / overshoot (\%) / smallest modal $\zeta$.}
+\label{tab:grid}
+\adjustbox{max width=\columnwidth}{%
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+ & $d=2.5$ & $d=5$ & $d=10$ & $d=22$ & $d=40$ \\
+\midrule
+$k=5$  & 14.8/15/0.23 & 7.9/5/0.47  & 7.4/0/0.93  & 17.0/0/2.05 & $>$20/0/3.72 \\
+$k=20$ & 15.4/21/0.12 & 7.4/15/0.23 & 4.0/5/0.47  & 4.1/0/1.02  & 7.7/0/1.86 \\
+$k=80$ & 15.3/26/0.06 & 7.7/21/0.12 & 3.7/15/0.23 & 1.5/3/0.51  & 1.9/0/0.93 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\subsection{Uniform damping versus scalar damping}
+
+Table~\ref{tab:damping} and Fig.~\ref{fig:damping} compare, at
+$k=20$, the proposal's $\mathbf{D}=5\mathbf{I}$, the best scalar
+damping from Table~\ref{tab:grid} ($\mathbf{D}=10\mathbf{I}$), and the
+uniform design~\eqref{eq:uniformDk} with $\zeta=0.7$, both fixed at
+$\boldsymbol{\theta}_d$ and evaluated online.
+
+\begin{table*}[!t]
+\centering
+\caption{Scalar versus uniform damping ($\mathbf{K}=20\mathbf{I}$),
+nonlinear simulation. Steps start from rest at
+$\boldsymbol{\theta}=\mathbf{0}$; the push is applied at
+$\boldsymbol{\theta}_d=\mathbf{0}$.}
+\label{tab:damping}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+ & \multicolumn{2}{c}{Step to $(1.0,-0.7)$~rad} & Step to $(0.3,-0.2)$~rad & \multicolumn{2}{c}{Push $(4,-2)$~N$\cdot$m, 0.3~s} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-4}\cmidrule(lr){5-6}
+Damping & settling (s) / overshoot & peak $|u_i|$ (N$\cdot$m) & settling (s) / overshoot & peak $|e_i|$ (rad) & settling (s) \\
+\midrule
+$\mathbf{D}=5\mathbf{I}$ (proposal) & 6.95 / 13.2\% & 21.7 & 7.38 / 14.6\% & 0.103 & 8.77 \\
+$\mathbf{D}=10\mathbf{I}$ & 2.81 / 3.9\% & 20.8 & 3.96 / 4.8\% & 0.063 & 5.54 \\
+Uniform, $\zeta=0.7$, fixed at $\boldsymbol{\theta}_d$ & 2.59 / 1.3\% & 20.0 & 2.79 / 1.4\% & 0.149 & 2.71 \\
+Uniform, $\zeta=0.7$, online $\mathbf{D}(\boldsymbol{\theta})$ & 2.62 / 1.3\% & 20.0 & 2.79 / 1.4\% & 0.149 & 2.71 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/damping_compare.png}
+\caption{Scalar versus uniform damping with $\mathbf{K}=20\mathbf{I}$.
+Left: step to $(1.0,-0.7)$~rad. Right: push of $(4,-2)$~N$\cdot$m
+for 0.3~s. The uniform design removes the slow ringing of the
+whole-arm mode but lets the arm deflect further under the push.}
+\label{fig:damping}
+\end{figure*}
+
+Three results stand out. First, the uniform design settles the
+large step in 2.6~s with 1.3\% overshoot, against 7.0~s and 13\%
+for the proposal's gains and 2.8~s and 3.9\% for the best scalar
+gain, without a larger peak torque (20.0 versus 20.8--21.7~N$\cdot$m).
+Second, the fixed and online versions are almost identical
+(2.59 versus 2.62~s), so designing $\mathbf{D}$ at the target is
+enough for these motions. Third, the uniform design deflects
+\emph{more} under the push: 0.149~rad, against 0.103 and
+0.063~rad. The push mostly excites the light forearm direction,
+where the scalar designs are heavily overdamped
+($\zeta=1.35$ and 2.7) and therefore resist fast motion
+strongly; the uniform design damps that direction only to
+$\zeta=0.7$. It still settles fastest after the push (2.7~s versus
+8.8 and 5.5~s). The damping matrix is part of the impedance the
+environment feels, so choosing it for a good step response also
+fixes how hard the arm resists a sudden push.
+
+\subsection{Error in the gravity model}
+
+The law~\eqref{eq:impedance} cancels gravity with a model. If the
+controller believes $m_2=0.9$~kg while the true value is
+1~kg, the arm settles at $\boldsymbol{\theta}_d=(1.0,-0.7)$ with error
+$(-0.051,-0.012)$~rad for $k=20$ and $(-0.014,-0.003)$~rad for
+$k=80$. The first-order estimate
+$\mathbf{K}^{-1}(\boldsymbol{\tau}_g-\hat{\boldsymbol{\tau}}_g)$,
+from~\eqref{eq:static} with the gravity error acting as an external
+torque, gives $(-0.056,-0.015)$ and $(-0.014,-0.004)$~rad. The
+error falls as $1/k$, so a soft arm needs an accurate gravity
+model.
+
+\section{Discussion and Limitations}
+
+\textbf{Model knowledge.} The law cancels gravity exactly only
+if the model is exact. Sec.~\ref{sec:results} shows that a 10\%
+mass error leaves a steady error proportional to $1/k$. Integral
+action would remove it, but it would also change the impedance
+the environment feels, since a constant push would then be
+rejected instead of yielded to. The uniform damping design
+additionally needs $\mathbf{M}(\boldsymbol{\theta}_d)$.
+
+\textbf{Measurement.} We assumed both angles and velocities are
+measured without noise. Sec.~\ref{sec:structural} shows that the
+angles alone, or even one sensor, make the linearization
+observable, so an observer could supply the velocities; we did
+not design one.
+
+\textbf{Physical effects left out.} The model has no friction,
+no actuator limits and no delays. The peak motor torques in our
+tests are about 22~N$\cdot$m, and friction would add damping that
+the design would have to account for.
+
+\textbf{Joint space.} The environment pushes on the hand, but our
+stiffness is defined at the joints. For small motions about a
+nonsingular pose with Jacobian $\mathbf{J}$, a joint stiffness
+$\mathbf{K}$ appears at the hand as
+$\mathbf{J}^{-T}\mathbf{K}\mathbf{J}^{-1}$, which varies with the pose.
+A Cartesian impedance law would choose the hand stiffness directly.
+
+\textbf{Constant target.} We regulate to a constant
+$\boldsymbol{\theta}_d$. Following a moving target would need
+feedforward of $\mathbf{M}\ddot{\boldsymbol{\theta}}_d+
+\mathbf{C}\dot{\boldsymbol{\theta}}_d$.
+
+\section{Conclusion}
+
+We modeled a two-link arm in state-space form and showed that
+its hanging equilibrium is only marginally stable, since without
+friction it swings forever. Its linearization is controllable and
+observable at every equilibrium, and it stays so with one motor
+or one sensor as long as gravity couples the joints. Since no
+open-loop mode decays on its own, stabilizability coincides with
+controllability here. The impedance law turns the arm into a
+mass-spring-damper with a static stiffness we choose exactly. An
+energy argument proves global asymptotic stability and passivity,
+and it holds for our Coriolis matrix even though that matrix is
+not the skew-symmetric choice. Because the arm's inertia
+is 34 times larger in one direction than the other, a scalar
+damping gain always leaves one mode poorly damped. A damping
+matrix built from $\mathbf{M}^{1/2}$ gives every mode the same
+damping ratio and cuts the settling time of a large step from
+7.0~s to 2.6~s, at the price of less resistance to sudden pushes.
+Every prediction was confirmed against simulations of the full
+nonlinear model.
 
 \bibliographystyle{IEEEtran}
 \bibliography{mybibfile}
